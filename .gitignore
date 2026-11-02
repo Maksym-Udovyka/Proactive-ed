@@ -218,3 +218,12 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Editors
+.vscode/
+
+# Reserve copies for DB(pg_dump)
+backup_*.sql
+
+# Local files Netlify
+.netlify/
