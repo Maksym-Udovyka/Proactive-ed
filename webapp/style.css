@@ -1,0 +1,285 @@
+/* =========================================
+           ПЕРЕМЕННЫЕ: СВЕТЛАЯ ТЕМА (по умолчанию)
+           Палитра ваша. Изменён только зелёный:
+           #058240 -> #045D2E, чтобы текст на карточках
+           и на кнопке читался (контраст 4.6:1 вместо 2.8:1)
+           ========================================= */
+        :root {
+            --page-bg: #E0E0E0;          /* фон вокруг "телефона" на десктопе */
+            --bg-color: #FEE3A2;
+            --card-bg: #ADCACB;
+            --text-main: #045D2E;
+            --text-sub: #024722;
+            --accent: #F3C301;
+            --btn-bg: #045D2E;
+            --btn-text: #FEE3A2;
+            --icon-bg: rgba(243, 195, 1, 0.4);
+            --border: rgba(2, 71, 34, 0.14);
+            --toast-bg: #024722;
+            --toast-text: #FEE3A2;
+        }
+
+        /* =========================================
+           ТЁМНАЯ ТЕМА (включается через data-theme="dark")
+           ========================================= */
+        :root[data-theme="dark"] {
+            --page-bg: #00041A;
+            --bg-color: #00082F;
+            --card-bg: #251766;
+            --text-main: #FDB29F;
+            --text-sub: #A895C9;
+            --accent: #DD768C;
+            --btn-bg: #DD768C;
+            --btn-text: #00082F;
+            --icon-bg: rgba(221, 118, 140, 0.2);
+            --border: rgba(253, 178, 159, 0.16);
+            --toast-bg: #FDB29F;
+            --toast-text: #00082F;
+        }
+
+        /* =========================================
+           ОСНОВНЫЕ СТИЛИ
+           ========================================= */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--page-bg);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            min-height: 100dvh;
+        }
+
+        button { font: inherit; }
+
+        /* Контейнер, имитирующий экран телефона на десктопе */
+        .app-container {
+            width: 100%;
+            max-width: 400px;
+            height: 100vh;
+            height: 100dvh;              /* dvh учитывает панели браузера на мобильных */
+            max-height: 850px;
+            background-color: var(--bg-color);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            transition: background-color 0.3s ease;
+        }
+
+        /* На телефоне растягиваем на весь экран */
+        @media (max-width: 400px) {
+            .app-container {
+                max-height: none;
+                box-shadow: none;
+            }
+        }
+
+        /* =========================================
+           ШАПКА И ПЕРЕКЛЮЧАТЕЛЬ ТЕМ
+           ========================================= */
+        .header {
+            padding: calc(24px + env(safe-area-inset-top)) 20px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        .header-text h1 {
+            color: var(--text-main);
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .header-text p {
+            color: var(--text-sub);
+            font-size: 13px;
+            line-height: 1.4;
+        }
+
+        .header-text .greeting {
+            margin-top: 10px;
+            color: var(--text-main);
+            font-size: 15px;
+            font-weight: 600;
+        }
+
+        .theme-toggle {
+            flex: none;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .theme-toggle svg { width: 20px; height: 20px; }
+        .theme-toggle .icon-sun { display: none; }
+        :root[data-theme="dark"] .theme-toggle .icon-sun { display: block; }
+        :root[data-theme="dark"] .theme-toggle .icon-moon { display: none; }
+
+        /* =========================================
+           СЕТКА КАРТОЧЕК
+           ========================================= */
+        .content {
+            padding: 10px 20px calc(100px + env(safe-area-inset-bottom)); /* место под кнопку */
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .card {
+            position: relative;
+            min-height: 132px;
+            color: inherit;
+            text-decoration: none;
+            -webkit-tap-highlight-color: transparent;
+            background-color: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            transition: background-color 0.3s ease, border-color 0.3s ease;
+        }
+
+        .card.full-width {
+            grid-column: 1 / -1;
+        }
+
+        .card-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            background-color: var(--icon-bg);
+            box-shadow: inset 0 0 0 1.5px var(--accent);
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 12px;
+        }
+
+        .card-icon svg {
+            width: 20px;
+            height: 20px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 1.8;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .card-title {
+            color: var(--text-main);
+            font-weight: 600;
+            font-size: 15px;
+            margin-bottom: 4px;
+        }
+
+        .card-subtitle {
+            color: var(--text-sub);
+            font-size: 12px;
+            line-height: 1.3;
+        }
+
+        /* =========================================
+           ФИКСИРОВАННАЯ КНОПКА (STICKY CTA)
+           ========================================= */
+        .sticky-footer {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            padding: 16px 20px calc(16px + env(safe-area-inset-bottom));
+            background: var(--bg-color); /* запасной вариант для старых браузеров */
+            background: linear-gradient(to top, var(--bg-color) 70%, color-mix(in srgb, var(--bg-color) 0%, transparent));
+        }
+
+        .main-button {
+            width: 100%;
+            background-color: var(--btn-bg);
+            color: var(--btn-text);
+            border: none;
+            border-radius: 14px;
+            padding: 16px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            transition: background-color 0.3s ease, color 0.3s ease, transform 0.1s ease;
+        }
+
+        .main-button:active { transform: scale(0.98); }
+
+        /* Видимая рамка фокуса для клавиатуры */
+        .main-button:focus-visible,
+        .theme-toggle:focus-visible {
+            outline: 3px solid var(--text-main);
+            outline-offset: 3px;
+        }
+
+        /* Всплывающее сообщение (вне Telegram) */
+        .toast {
+            position: absolute;
+            left: 20px;
+            right: 20px;
+            bottom: calc(92px + env(safe-area-inset-bottom));
+            padding: 12px 16px;
+            border-radius: 12px;
+            background: var(--toast-bg);
+            color: var(--toast-text);
+            font-size: 14px;
+            text-align: center;
+            opacity: 0;
+            transform: translateY(8px);
+            pointer-events: none;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+        }
+        .toast.show { opacity: 1; transform: translateY(0); }
+
+        @media (prefers-reduced-motion: reduce) {
+            * { transition: none !important; }
+        }
+
+/* ---------- Картки-розділи (заглушки без поломки розмітки) ---------- */
+.card.full-width { min-height: 0; }
+.card-title, .card-subtitle { overflow-wrap: anywhere; }
+.card-subtitle { flex: 1; }
+.card-badge {
+    align-self: flex-start;
+    margin-top: 10px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-sub);
+    border: 1px solid var(--border);
+}
+.card[data-status="ready"] .card-badge { display: none; }
+.card[data-status="ready"] { cursor: pointer; }
+.card[data-status="ready"]:active { transform: scale(0.98); }
+.card[data-status="soon"] { cursor: default; }
+.card:focus-visible { outline: 3px solid var(--text-main); outline-offset: 3px; }
