@@ -9,20 +9,36 @@ class UserRepository:
 
     async def upsert_telegram_user(self, telegram_id: int, first_name: str,
                                    username: str | None, language_code: str) -> dict:
-        """Атомарно створює користувача або оновлює ім'я/username (без гонки SELECT→INSERT).
-        Мову й часовий пояс, які користувач міг змінити в профілі, не перезаписує."""
+        """Знаходить користувача або створює нового.
+
+        Спочатку SELECT: INSERT ... ON CONFLICT бере значення з лічильника user_id ще до
+        перевірки конфлікту, тому кожен повторний вхід "спалював" би один номер.
+        Тепер INSERT виконується лише для справді нового користувача.
+        Ім'я/username оновлюються, лише якщо змінились. Мову й часовий пояс не чіпаємо.
+        """
         async with self.pool.acquire() as conn:
+            row = await conn.fetchrow(
+                f"SELECT {_COLUMNS} FROM auth.users WHERE telegram_id = $1;", telegram_id)
+            if row:
+                if row["first_name"] != first_name or row["username"] != username:
+                    row = await conn.fetchrow(
+                        f"UPDATE auth.users SET first_name = $2, username = $3 "
+                        f"WHERE telegram_id = $1 RETURNING {_COLUMNS};",
+                        telegram_id, first_name, username)
+                return dict(row)
+
             row = await conn.fetchrow(
                 f"""
                 INSERT INTO auth.users (telegram_id, first_name, username, language_code)
                 VALUES ($1, $2, $3, $4)
-                ON CONFLICT (telegram_id) DO UPDATE
-                    SET first_name = EXCLUDED.first_name,
-                        username   = EXCLUDED.username
+                ON CONFLICT (telegram_id) DO NOTHING
                 RETURNING {_COLUMNS};
                 """,
                 telegram_id, first_name, username, language_code,
             )
+            if row is None:  # рідкісна гонка: паралельний запит створив користувача першим
+                row = await conn.fetchrow(
+                    f"SELECT {_COLUMNS} FROM auth.users WHERE telegram_id = $1;", telegram_id)
             return dict(row)
 
     async def get_user_by_id(self, user_id: int) -> dict | None:
