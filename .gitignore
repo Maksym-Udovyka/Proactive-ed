@@ -227,3 +227,5 @@ backup_*.sql
 
 # Local files Netlify
 .netlify/
+
+venv/

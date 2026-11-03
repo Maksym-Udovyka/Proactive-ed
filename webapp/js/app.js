@@ -3,6 +3,7 @@
     "use strict";
 
     var STORAGE_KEY = "proactive-ed-theme";
+    var TOKEN_KEY = "proactive-ed-token";
     var root = document.documentElement;
     var tg = window.Telegram && window.Telegram.WebApp;
     var inTelegram = !!(tg && tg.initData); // true только при открытии из Telegram
@@ -82,10 +83,40 @@
             });
         });
 
-        /* Кнопка перевірки зв'язку */
-        mainBtn.addEventListener("click", function () {
-            if (inTelegram) tg.showAlert("Mini App працює. Платформа: " + tg.platform);
-            else showToast("Відкрийте цю сторінку з Telegram");
+        /* Кнопка перевірки зв'язку: логін через сервіс auth + запит /me.
+           Перевіряє весь шлях: Mini App -> Netlify -> тунель -> auth -> PostgreSQL.
+           Заголовок ngrok-skip-browser-warning потрібен лише поки використовується ngrok. */
+        mainBtn.addEventListener("click", async function () {
+            if (!inTelegram) { showToast("Відкрийте цю сторінку з Telegram"); return; }
+            var h = { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" };
+            try {
+                var res = await fetch("/api/auth/v1/telegram-login", {
+                    method: "POST",
+                    headers: h,
+                    body: JSON.stringify({ initData: tg.initData })
+                });
+                var data = await res.json().catch(function () { return {}; });
+                if (!res.ok) {
+                    tg.showAlert("Помилка входу (" + res.status + "): " + (data.error || "невідома"));
+                    return;
+                }
+                try { localStorage.setItem(TOKEN_KEY, data.token); } catch (e) {}
+
+                var me = await fetch("/api/auth/v1/me", {
+                    headers: {
+                        "Authorization": "Bearer " + data.token,
+                        "ngrok-skip-browser-warning": "true"
+                    }
+                });
+                var meData = await me.json().catch(function () { return {}; });
+                if (!me.ok) {
+                    tg.showAlert("Помилка /me (" + me.status + "): " + (meData.error || "невідома"));
+                    return;
+                }
+                tg.showAlert("Вхід успішний! user_id=" + meData.user.user_id + ", " + meData.user.first_name);
+            } catch (e) {
+                tg.showAlert("Немає зв'язку з сервером: " + e.message);
+            }
         });
     });
 })();

@@ -1,2 +1,8 @@
 [build]
-    publish = "webapp"
+  publish = "webapp"
+
+[[redirects]]
+  from = "/api/*"
+  to = "https://barracuda-thicken-gatherer.ngrok-free.dev/api/:splat"
+  status = 200
+  force = true
