@@ -1,5 +1,6 @@
 import logging
 import re
+import unicodedata
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from aiohttp import web
@@ -10,6 +11,19 @@ from app.core.security import (InvalidInitData, create_jwt_token, decode_jwt_tok
 log = logging.getLogger("auth")
 routes = web.RouteTableDef()
 _LANG_RE = re.compile(r"^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})?$")
+
+# Маршрути, доступні без токена. Усе інше захищене за замовчуванням (див. auth_middleware).
+PUBLIC_PATHS = frozenset({
+    "/api/auth/v1/health",
+    "/api/auth/v1/telegram-login",
+})
+
+_DISPLAY_NAME_MAX = 64
+_PUBLIC_IDS_MAX = 50
+_BIGINT_MAX = 2 ** 63 - 1
+# Невидимі символи та керування напрямком тексту: через них можна підробити чуже ім'я.
+_FORBIDDEN_NAME_CHARS = frozenset(
+    "​‎‏‪‫‬‭‮⁦⁧⁨⁩﻿")
 
 
 class ApiError(Exception):
@@ -30,17 +44,8 @@ async def error_middleware(request: web.Request, handler):
         return web.json_response({"error": "Internal server error"}, status=500)
 
 
-async def _json_body(request: web.Request) -> dict:
-    try:
-        data = await request.json()
-    except Exception:
-        raise ApiError(400, "Request body must be valid JSON")
-    if not isinstance(data, dict):
-        raise ApiError(400, "Request body must be a JSON object")
-    return data
-
-
-def _current_user_id(request: web.Request) -> int:
+def _authenticate(request: web.Request) -> int:
+    """Перевіряє заголовок Authorization: Bearer <JWT> і повертає user_id."""
     header = request.headers.get("Authorization", "")
     scheme, _, token = header.partition(" ")
     if scheme.lower() != "bearer" or not token.strip():
@@ -52,6 +57,44 @@ def _current_user_id(request: web.Request) -> int:
         return int(payload["sub"])
     except (KeyError, ValueError):
         raise ApiError(401, "Invalid token")
+
+
+@web.middleware
+async def auth_middleware(request: web.Request, handler):
+    """Вимагає JWT на всіх маршрутах, крім PUBLIC_PATHS. user_id кладе в request["user_id"].
+
+    Підключати у create_app ПІСЛЯ error_middleware: тоді ApiError з цього middleware
+    перетворюється на JSON-відповідь у тому самому форматі.
+    """
+    if request.path not in PUBLIC_PATHS:
+        request["user_id"] = _authenticate(request)
+    return await handler(request)
+
+
+async def _json_body(request: web.Request) -> dict:
+    try:
+        data = await request.json()
+    except Exception:
+        raise ApiError(400, "Request body must be valid JSON")
+    if not isinstance(data, dict):
+        raise ApiError(400, "Request body must be a JSON object")
+    return data
+
+
+def _clean_display_name(value) -> str | None:
+    """Перевіряє відображуване ім'я. None або порожній рядок скидають його до імені з Telegram."""
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise ApiError(400, "display_name must be a string")
+    name = " ".join(value.split())  # прибирає переноси, табуляції та подвійні пробіли
+    if not name:
+        return None
+    if len(name) > _DISPLAY_NAME_MAX:
+        raise ApiError(400, f"display_name must be at most {_DISPLAY_NAME_MAX} characters")
+    if any(unicodedata.category(c) == "Cc" or c in _FORBIDDEN_NAME_CHARS for c in name):
+        raise ApiError(400, "display_name contains forbidden characters")
+    return name
 
 
 @routes.get("/api/auth/v1/health")
@@ -88,7 +131,7 @@ async def telegram_login(request: web.Request):
 
 @routes.get("/api/auth/v1/me")
 async def get_me(request: web.Request):
-    user = await request.app["user_repo"].get_user_by_id(_current_user_id(request))
+    user = await request.app["user_repo"].get_user_by_id(request["user_id"])
     if not user:
         raise ApiError(401, "User no longer exists")
     return web.json_response({"user": user})
@@ -96,16 +139,17 @@ async def get_me(request: web.Request):
 
 @routes.patch("/api/auth/v1/me")
 async def update_me(request: web.Request):
-    """Редагування профілю: first_name, language_code, timezone."""
-    user_id = _current_user_id(request)
+    """Редагування профілю: display_name, language_code, timezone.
+
+    first_name не редагується: він синхронізується з Telegram при кожному вході.
+    Власне ім'я користувача зберігається в display_name і вхід його не змінює.
+    """
+    user_id = request["user_id"]
     data = await _json_body(request)
     fields: dict = {}
 
-    if "first_name" in data:
-        v = data["first_name"]
-        if not isinstance(v, str) or not 1 <= len(v.strip()) <= 64:
-            raise ApiError(400, "first_name must be a string of 1-64 characters")
-        fields["first_name"] = v.strip()
+    if "display_name" in data:
+        fields["display_name"] = _clean_display_name(data["display_name"])
     if "language_code" in data:
         v = data["language_code"]
         if not isinstance(v, str) or not _LANG_RE.match(v):
@@ -125,3 +169,30 @@ async def update_me(request: web.Request):
     if not user:
         raise ApiError(401, "User no longer exists")
     return web.json_response({"user": user})
+
+
+@routes.get("/api/auth/v1/users/public")
+async def get_public_profiles(request: web.Request):
+    """Публічні профілі за списком id: GET /users/public?ids=1,2,3.
+
+    Повертає лише user_id та ім'я, яке бачать інші люди. Жодних telegram_id, username,
+    часового поясу чи мови. Сервіс планування використовуватиме це для списку учасників.
+
+    УВАГА: поки сервісу планування немає, будь-який авторизований користувач може
+    дізнатися ім'я за user_id. Коли з'являться плани, обмежити відповідь учасниками
+    спільних планів.
+    """
+    raw = request.query.get("ids", "")
+    try:
+        ids = sorted({int(x) for x in raw.split(",") if x.strip()})
+    except ValueError:
+        raise ApiError(400, "ids must be a comma-separated list of integers")
+    if not ids:
+        raise ApiError(400, "ids is required")
+    if len(ids) > _PUBLIC_IDS_MAX:
+        raise ApiError(400, f"At most {_PUBLIC_IDS_MAX} ids per request")
+    if ids[0] < 1 or ids[-1] > _BIGINT_MAX:
+        raise ApiError(400, "ids must be positive integers")
+
+    users = await request.app["user_repo"].get_public_profiles(ids)
+    return web.json_response({"users": users})

@@ -5,14 +5,16 @@ import asyncpg
 from aiohttp import web
 from dotenv import load_dotenv
 
-from app.api.routes import error_middleware, routes
+from app.api.routes import auth_middleware, error_middleware, routes
 from app.core.config import Settings
 from app.repository.user_repository import UserRepository
 
 
 def create_app(settings: Settings, user_repo=None) -> web.Application:
     """user_repo можна підставити в тестах; інакше створюється пул PostgreSQL."""
-    app = web.Application(middlewares=[error_middleware], client_max_size=64 * 1024)
+    # Порядок важливий: error_middleware зовнішній, щоб ловити помилки auth_middleware.
+    app = web.Application(middlewares=[error_middleware, auth_middleware],
+                          client_max_size=64 * 1024)
     app["settings"] = settings
     if user_repo is not None:
         app["user_repo"] = user_repo
