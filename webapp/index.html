@@ -25,8 +25,8 @@
                 <p class="greeting" id="greeting" hidden></p>
             </div>
             <div class="header-actions">
-                <!-- Аватар з Telegram (видно лише після входу) -->
-                <div class="avatar" id="avatar" aria-hidden="true"></div>
+                <!-- Аватар з Telegram (видно після входу). Натискання відкриває профіль -->
+                <button class="avatar" id="avatar" type="button" aria-label="Відкрити профіль"></button>
                 <button class="theme-toggle" id="themeBtn" type="button"
                         aria-label="Перемкнути тему" aria-pressed="false">
                     <!-- Луна: показана в светлой теме -->
@@ -92,6 +92,22 @@
                     <span class="card-badge">Скоро</span>
                 </a>
             </div>
+        </main>
+
+        <!-- Екран 5: профіль (відкривається натисканням на аватар) -->
+        <main class="content screen screen-profile">
+            <form class="profile-form" id="profileForm" novalidate>
+                <h2 class="profile-title">Профіль</h2>
+                <label class="field-label" for="nameInput">Ім'я, яке бачать інші</label>
+                <input class="field-input" id="nameInput" name="display_name" type="text"
+                       maxlength="64" autocomplete="off" enterkeyhint="done">
+                <p class="field-hint">Це ім'я бачитимуть інші учасники ваших планів. Залиште поле порожнім, щоб використовувати ім'я з Telegram.</p>
+                <p class="field-error" id="profileError" role="alert" hidden></p>
+                <div class="profile-actions">
+                    <button class="main-button" id="saveBtn" type="submit">Зберегти</button>
+                    <button class="secondary-button" id="cancelBtn" type="button">Скасувати</button>
+                </div>
+            </form>
         </main>
 
         <div class="toast" id="toast" role="status" aria-live="polite"></div>

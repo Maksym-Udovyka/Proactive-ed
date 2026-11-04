@@ -17,6 +17,7 @@
     --border: rgba(2, 71, 34, 0.14);
     --toast-bg: #024722;
     --toast-text: #FEE3A2;
+    --danger: #9B1C1C;
 }
 
 /* =========================================
@@ -35,6 +36,7 @@
     --border: rgba(253, 178, 159, 0.16);
     --toast-bg: #FDB29F;
     --toast-text: #00082F;
+    --danger: #FF9B9B;
 }
 
 /* =========================================
@@ -124,11 +126,13 @@ button { font: inherit; }
     gap: 10px;
 }
 
-/* Аватар из Telegram: показывается только на экране "ready" (см. блок экранов ниже) */
+/* Аватар из Telegram (кнопка, открывает профиль).
+   Показывается только на экранах "ready" и "profile" (см. блок экранов ниже) */
 .avatar {
     flex: none;
     width: 40px;
     height: 40px;
+    padding: 0;
     border-radius: 50%;
     overflow: hidden;
     display: none;
@@ -139,7 +143,9 @@ button { font: inherit; }
     color: var(--text-main);
     font-size: 16px;
     font-weight: 700;
+    cursor: pointer;
     user-select: none;
+    -webkit-tap-highlight-color: transparent;
 }
 
 .avatar img {
@@ -171,11 +177,13 @@ button { font: inherit; }
 
 /* =========================================
    ЭКРАНЫ (переключаются атрибутом data-state на <html>)
-   loading / ready / error / outside
+   loading / ready / profile / error / outside
    ========================================= */
 .screen { display: none; }
-:root[data-state="ready"] .screen-ready { display: block; }
-:root[data-state="ready"] .avatar { display: flex; }
+:root[data-state="ready"] .screen-ready,
+:root[data-state="profile"] .screen-profile { display: block; }
+:root[data-state="ready"] .avatar,
+:root[data-state="profile"] .avatar { display: flex; }
 :root[data-state="loading"] .screen-loading,
 :root[data-state="outside"] .screen-outside,
 :root[data-state="error"] .screen-error { display: flex; }
@@ -243,6 +251,61 @@ button { font: inherit; }
 }
 
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* =========================================
+   ЭКРАН ПРОФИЛЯ
+   ========================================= */
+.profile-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.profile-title {
+    color: var(--text-main);
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 6px;
+}
+
+.field-label {
+    color: var(--text-main);
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.field-input {
+    width: 100%;
+    padding: 14px 16px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background-color: var(--card-bg);
+    color: var(--text-main);
+    font: inherit;
+    font-size: 16px;              /* 16px, чтобы iOS не увеличивал страницу при фокусе */
+}
+
+.field-input::placeholder { color: var(--text-sub); opacity: 0.6; }
+
+.field-hint {
+    color: var(--text-sub);
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+.field-error {
+    color: var(--danger);
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.4;
+}
+
+.profile-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 8px;
+}
 
 /* =========================================
    СЕТКА КАРТОЧЕК
@@ -317,7 +380,7 @@ button { font: inherit; }
 }
 
 /* =========================================
-   КНОПКИ (экраны "ошибка" и "откройте в Telegram")
+   КНОПКИ
    ========================================= */
 .main-button {
     display: block;
@@ -337,15 +400,36 @@ button { font: inherit; }
 }
 
 .main-button:active { transform: scale(0.98); }
+.main-button:disabled { opacity: 0.6; cursor: default; }
+
+.secondary-button {
+    display: block;
+    width: 100%;
+    background: transparent;
+    color: var(--text-main);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+}
 
 /* Видимая рамка фокуса для клавиатуры */
 .main-button:focus-visible,
-.theme-toggle:focus-visible {
+.secondary-button:focus-visible,
+.theme-toggle:focus-visible,
+.avatar:focus-visible {
     outline: 3px solid var(--text-main);
     outline-offset: 3px;
 }
 
-/* Всплывающее сообщение (заглушки разделов) */
+.field-input:focus-visible {
+    outline: 3px solid var(--text-main);
+    outline-offset: 2px;
+}
+
+/* Всплывающее сообщение (заглушки разделов, подтверждение сохранения) */
 .toast {
     position: absolute;
     left: 20px;

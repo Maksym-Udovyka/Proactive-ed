@@ -3,6 +3,7 @@
    Экраны (атрибут data-state на <html>):
      loading  — открыто из Telegram, идёт вход
      ready    — вход выполнен, показываем приложение и аватар
+     profile  — экран профиля (открывается по нажатию на аватар)
      error    — вход не удался (кнопка «Спробувати ще раз»)
      outside  — открыто не из Telegram */
 (function () {
@@ -11,7 +12,7 @@
     /* Ім'я Telegram-бота без @ (наприклад "proactive_ed_bot").
        Потрібне для кнопки «Відкрити в Telegram» на екрані для звичайного браузера.
        Якщо залишити порожнім, кнопку буде приховано. */
-    var BOT_USERNAME = "proactive_ed_bot";
+    var BOT_USERNAME = "";
 
     var API = "/api/auth/v1";
     var STORAGE_KEY = "proactive-ed-theme";
@@ -46,7 +47,17 @@
         var errorText = document.getElementById("errorText");
         var retryBtn = document.getElementById("retryBtn");
         var openBotBtn = document.getElementById("openBotBtn");
+        var profileForm = document.getElementById("profileForm");
+        var nameInput = document.getElementById("nameInput");
+        var profileError = document.getElementById("profileError");
+        var saveBtn = document.getElementById("saveBtn");
+        var cancelBtn = document.getElementById("cancelBtn");
 
+        var token = null;        // JWT після входу
+        var currentUser = null;  // користувач з /me: name, display_name, first_name, ...
+        var tgUser = {};         // дані користувача з Telegram (для фото)
+
+        function getState() { return root.getAttribute("data-state"); }
         function setState(state) { root.setAttribute("data-state", state); }
 
         function syncColors() {
@@ -93,22 +104,35 @@
            Спочатку показуємо круг з першою літерою імені. Якщо Telegram передав photo_url
            і картинка завантажилась, підміняємо літеру фото. Фото може бути відсутнім
            (немає аватара або він прихований налаштуваннями приватності). */
-        function renderAvatar(name, photoUrl) {
+        var avatarHasPhoto = false;
+
+        function setAvatarInitial(name) {
+            if (avatarHasPhoto) return;
             var first = Array.from((name || "").trim())[0] || "?";
             avatar.textContent = first.toUpperCase();
-            if (!photoUrl) return;
+        }
+
+        function renderAvatar(name, photoUrl) {
+            setAvatarInitial(name);
+            if (!photoUrl || avatarHasPhoto) return;
             var img = new Image();
             img.alt = "";
             img.referrerPolicy = "no-referrer";
             img.onload = function () {
+                avatarHasPhoto = true;
                 avatar.textContent = "";
                 avatar.appendChild(img);
             };
             img.src = photoUrl;
         }
 
-        function showUser(user, tgUser) {
-            var name = user.first_name || tgUser.first_name || "";
+        /* Ім'я для показу: display_name, якщо задано, інакше ім'я з Telegram (поле name від сервера) */
+        function shownName() {
+            return (currentUser && (currentUser.name || currentUser.first_name)) || tgUser.first_name || "";
+        }
+
+        function showUser() {
+            var name = shownName();
             greeting.textContent = name ? "Привіт, " + name + "!" : "Привіт!";
             greeting.hidden = false;
             renderAvatar(name, tgUser.photo_url);
@@ -123,6 +147,12 @@
             return res.json().catch(function () { return {}; });
         }
 
+        function authHeaders(extra) {
+            var h = { "Authorization": "Bearer " + token, "ngrok-skip-browser-warning": "true" };
+            for (var k in (extra || {})) h[k] = extra[k];
+            return h;
+        }
+
         /* ---------- Автоматичний вхід / реєстрація ----------
            Сервіс auth перевіряє підпис initData і створює користувача при першому вході.
            Шлях: Mini App -> Netlify -> тунель -> auth -> PostgreSQL.
@@ -132,7 +162,7 @@
             if (busy) return;
             busy = true;
             setState("loading");
-            var tgUser = (tg.initDataUnsafe && tg.initDataUnsafe.user) || {};
+            tgUser = (tg.initDataUnsafe && tg.initDataUnsafe.user) || {};
             try {
                 var res = await fetch(API + "/telegram-login", {
                     method: "POST",
@@ -144,21 +174,18 @@
                     fail("Помилка входу (" + res.status + "): " + (data.error || "невідома"));
                     return;
                 }
-                try { localStorage.setItem(TOKEN_KEY, data.token); } catch (e) {}
+                token = data.token;
+                try { localStorage.setItem(TOKEN_KEY, token); } catch (e) {}
 
-                var me = await fetch(API + "/me", {
-                    headers: {
-                        "Authorization": "Bearer " + data.token,
-                        "ngrok-skip-browser-warning": "true"
-                    }
-                });
+                var me = await fetch(API + "/me", { headers: authHeaders() });
                 var meData = await readJson(me);
                 if (!me.ok || !meData.user) {
                     fail("Помилка профілю (" + me.status + "): " + (meData.error || "невідома"));
                     return;
                 }
 
-                showUser(meData.user, tgUser);
+                currentUser = meData.user;
+                showUser();
                 setState("ready");
             } catch (e) {
                 fail("Немає зв'язку з сервером. Перевірте інтернет і спробуйте ще раз.");
@@ -168,6 +195,63 @@
         }
 
         retryBtn.addEventListener("click", login);
+
+        /* ---------- Профіль: зміна відображуваного імені ----------
+           display_name зберігається на сервері й не перезаписується при наступному вході.
+           Порожнє поле скидає ім'я до імені з Telegram. */
+        function openProfile() {
+            if (!currentUser) return;
+            nameInput.value = currentUser.display_name || "";
+            nameInput.placeholder = currentUser.first_name || "Ваше ім'я";
+            profileError.hidden = true;
+            setState("profile");
+            nameInput.focus();
+        }
+
+        function closeProfile() { setState("ready"); }
+
+        avatar.addEventListener("click", function () {
+            if (getState() === "ready") openProfile();
+            else if (getState() === "profile") closeProfile();
+        });
+        cancelBtn.addEventListener("click", closeProfile);
+
+        var saving = false;
+        profileForm.addEventListener("submit", async function (e) {
+            e.preventDefault();
+            if (saving) return;
+            saving = true;
+            saveBtn.disabled = true;
+            profileError.hidden = true;
+            try {
+                var res = await fetch(API + "/me", {
+                    method: "PATCH",
+                    headers: authHeaders({ "Content-Type": "application/json" }),
+                    body: JSON.stringify({ display_name: nameInput.value })
+                });
+                if (res.status === 401) {   // токен прострочений: входимо знову
+                    login();
+                    return;
+                }
+                var data = await readJson(res);
+                if (!res.ok || !data.user) {
+                    profileError.textContent = data.error || "Не вдалося зберегти. Спробуйте ще раз.";
+                    profileError.hidden = false;
+                    return;
+                }
+                currentUser = data.user;
+                showUser();
+                setAvatarInitial(shownName());
+                setState("ready");
+                showToast("Ім'я збережено");
+            } catch (err) {
+                profileError.textContent = "Немає зв'язку з сервером. Спробуйте ще раз.";
+                profileError.hidden = false;
+            } finally {
+                saving = false;
+                saveBtn.disabled = false;
+            }
+        });
 
         if (inTelegram) {
             tg.ready();
