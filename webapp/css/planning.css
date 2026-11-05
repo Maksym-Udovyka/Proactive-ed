@@ -322,6 +322,25 @@ select.field-input,
 input[type="date"].field-input,
 input[type="datetime-local"].field-input {
     min-height: 50px;
+    min-width: 0;
+}
+
+/* iOS: системный вид полей даты и времени растягивается и центрируется.
+   Приводим их к виду остальных полей. */
+input[type="date"].field-input,
+input[type="datetime-local"].field-input {
+    -webkit-appearance: none;
+    appearance: none;
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    text-align: left;
+}
+
+input[type="date"].field-input::-webkit-date-and-time-value,
+input[type="datetime-local"].field-input::-webkit-date-and-time-value {
+    text-align: left;
+    min-height: 1.3em;
 }
 
 .quick-values {
