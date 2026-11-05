@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="color-scheme" content="light dark">
+    <meta name="theme-color" content="#FEE3A2">
+    <title>Навчальні плани - Proactive Ed</title>
+
+    <!-- Telegram WebApp API -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+    <!-- Тема й екран вибираються до відрисовки (без мигання), так само як на головній -->
+    <script>
+        (function () {
+            var root = document.documentElement;
+            var tg = window.Telegram && window.Telegram.WebApp;
+            var inTelegram = !!(tg && tg.initData);
+            var saved = null;
+            try {
+                var t = localStorage.getItem("proactive-ed-theme");
+                saved = (t === "light" || t === "dark") ? t : null;
+            } catch (e) {}
+            root.setAttribute("data-theme",
+                saved ||
+                (inTelegram && tg.colorScheme) ||
+                (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"));
+            root.setAttribute("data-state", inTelegram ? "loading" : "outside");
+        })();
+    </script>
+
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/planning.css">
+    <script type="module" src="js/planning.js"></script>
+</head>
+<body>
+
+    <div class="app-container">
+
+        <!-- Верхня панель: назад, заголовок екрана, дія (наприклад «Редагувати») -->
+        <header class="topbar">
+            <button class="icon-button" id="backBtn" type="button" aria-label="Назад">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                     stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M15 5l-7 7 7 7"/>
+                </svg>
+            </button>
+            <h1 class="topbar-title" id="screenTitle">Навчальні плани</h1>
+            <div class="topbar-action" id="headerAction"></div>
+        </header>
+
+        <!-- Екран: перший вхід / завантаження -->
+        <section class="status screen screen-loading" role="status" aria-live="polite">
+            <div class="spinner" aria-hidden="true"></div>
+            <p class="status-text">Завантажуємо…</p>
+        </section>
+
+        <!-- Екран: відкрито не з Telegram -->
+        <section class="status screen screen-outside">
+            <div class="status-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7Z"/></svg>
+            </div>
+            <h2 class="status-title">Відкрийте в Telegram</h2>
+            <p class="status-text">Навчальні плани доступні лише в міні-застосунку Telegram. Відкрийте його через бота.</p>
+        </section>
+
+        <!-- Екран: не вдалося увійти -->
+        <section class="status screen screen-error" role="alert">
+            <div class="status-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V13M12 16.5h.01"/></svg>
+            </div>
+            <h2 class="status-title">Не вдалося увійти</h2>
+            <p class="status-text" id="errorText"></p>
+            <button class="main-button" id="retryBtn" type="button">Спробувати ще раз</button>
+        </section>
+
+        <!-- Основний вміст: екрани малює planning.js -->
+        <main class="content screen screen-ready" id="view"></main>
+
+        <!-- Плаваюча кнопка додавання (показується тільки там, де можна додавати) -->
+        <button class="fab" id="fab" type="button" aria-label="Додати" hidden>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 5v14M5 12h14"/>
+            </svg>
+        </button>
+
+        <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    </div>
+
+</body>
+</html>
