@@ -5,10 +5,12 @@
      #/plan/new                  новий план
      #/plan/5                    сторінка плану
      #/plan/5/edit               редагування плану
+     #/plan/5/members            учасники плану                  (НОВЕ)
      #/plan/5/session/new        нова сесія
      #/session/12/edit           редагування сесії
      #/plan/5/event/new          нова подія
      #/event/3/edit              редагування події
+     #/invite/<токен>            вступ за запрошенням            (НОВЕ)
 
    Екрани підвантажуються лише тоді, коли користувач на них переходить. */
 
@@ -20,15 +22,18 @@ const root = document.documentElement;
 const backBtn = document.getElementById("backBtn");
 const retryBtn = document.getElementById("retryBtn");
 
+/* text: true означає, що параметр лишається рядком (токен), а не стає числом */
 const routes = [
     { re: /^\/$/, names: [], load: () => import("./screens/plans.js"), fn: "showPlans" },
     { re: /^\/plan\/new$/, names: [], load: () => import("./screens/plans.js"), fn: "showPlanForm" },
     { re: /^\/plan\/(\d+)$/, names: ["planId"], load: () => import("./screens/plan.js"), fn: "showPlan" },
     { re: /^\/plan\/(\d+)\/edit$/, names: ["planId"], load: () => import("./screens/plans.js"), fn: "showPlanForm" },
+    { re: /^\/plan\/(\d+)\/members$/, names: ["planId"], load: () => import("./screens/members.js"), fn: "showMembers" },
     { re: /^\/plan\/(\d+)\/session\/new$/, names: ["planId"], load: () => import("./screens/session.js"), fn: "showSessionForm" },
     { re: /^\/session\/(\d+)\/edit$/, names: ["sessionId"], load: () => import("./screens/session.js"), fn: "showSessionForm" },
     { re: /^\/plan\/(\d+)\/event\/new$/, names: ["planId"], load: () => import("./screens/event.js"), fn: "showEventForm" },
-    { re: /^\/event\/(\d+)\/edit$/, names: ["eventId"], load: () => import("./screens/event.js"), fn: "showEventForm" }
+    { re: /^\/event\/(\d+)\/edit$/, names: ["eventId"], load: () => import("./screens/event.js"), fn: "showEventForm" },
+    { re: /^\/invite\/([A-Za-z0-9_-]{1,100})$/, names: ["token"], text: true, load: () => import("./screens/invite.js"), fn: "showInvite" }
 ];
 
 let navId = 0;
@@ -47,7 +52,7 @@ async function route() {
 
         const params = {};
         entry.names.forEach(function (name, index) {
-            params[name] = Number(match[index + 1]);
+            params[name] = entry.text ? match[index + 1] : Number(match[index + 1]);
         });
 
         try {

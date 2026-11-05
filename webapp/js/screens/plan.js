@@ -127,10 +127,12 @@ function draw(state) {
         body = groupTimeline(shown).map(function (group) { return dayHtml(group, owner); }).join("");
     }
 
+    /* НОВЕ: рядок-вхід на екран «Учасники» для всіх ролей */
     render(`
         ${plan.description ? `<p class="plan-description">${escapeHtml(plan.description)}</p>` : ""}
         <div class="plan-meta">
             <span class="badge${owner ? " badge-owner" : ""}">${escapeHtml(ROLE_LABELS[plan.role] || plan.role)}</span>
+            <a class="members-link" href="#/plan/${plan.plan_id}/members">Учасники</a>
         </div>
         <div class="tabs" role="tablist">${tabs}</div>
         ${body}

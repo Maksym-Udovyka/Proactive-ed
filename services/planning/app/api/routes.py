@@ -204,6 +204,92 @@ async def get_timeline(request: web.Request) -> web.Response:
     return web.json_response(result)
 
 
+# ---------- участники (НОВОЕ) ----------
+
+@handle_errors
+async def list_members(request: web.Request) -> web.Response:
+    result = await service.list_members(
+        _pool(request), _user(request), _id(request, "plan_id")
+    )
+    return web.json_response(result)
+
+
+@handle_errors
+async def update_member_role(request: web.Request) -> web.Response:
+    data = await _read_json(request)
+    result = await service.update_member_role(
+        _pool(request),
+        _user(request),
+        _id(request, "plan_id"),
+        _id(request, "user_id"),
+        data,
+    )
+    return web.json_response(result)
+
+
+@handle_errors
+async def remove_member(request: web.Request) -> web.Response:
+    await service.remove_member(
+        _pool(request),
+        _user(request),
+        _id(request, "plan_id"),
+        _id(request, "user_id"),
+    )
+    return web.Response(status=204)
+
+
+@handle_errors
+async def leave_plan(request: web.Request) -> web.Response:
+    await service.leave_plan(_pool(request), _user(request), _id(request, "plan_id"))
+    return web.Response(status=204)
+
+
+# ---------- приглашения (НОВОЕ) ----------
+
+@handle_errors
+async def create_invite(request: web.Request) -> web.Response:
+    data = await _read_json(request)
+    result = await service.create_invite(
+        _pool(request), _user(request), _id(request, "plan_id"), data
+    )
+    return web.json_response(result, status=201)
+
+
+@handle_errors
+async def list_invites(request: web.Request) -> web.Response:
+    result = await service.list_invites(
+        _pool(request), _user(request), _id(request, "plan_id")
+    )
+    return web.json_response(result)
+
+
+@handle_errors
+async def revoke_invite(request: web.Request) -> web.Response:
+    await service.revoke_invite(
+        _pool(request),
+        _user(request),
+        _id(request, "plan_id"),
+        _id(request, "invite_id"),
+    )
+    return web.Response(status=204)
+
+
+@handle_errors
+async def get_invite_preview(request: web.Request) -> web.Response:
+    result = await service.get_invite_preview(
+        _pool(request), _user(request), request.match_info["token"]
+    )
+    return web.json_response(result)
+
+
+@handle_errors
+async def accept_invite(request: web.Request) -> web.Response:
+    result = await service.accept_invite(
+        _pool(request), _user(request), request.match_info["token"]
+    )
+    return web.json_response(result)
+
+
 # ---------- регистрация маршрутов ----------
 
 def setup_routes(app: web.Application) -> None:
@@ -231,3 +317,22 @@ def setup_routes(app: web.Application) -> None:
     router.add_delete(p + r"/events/{event_id:\d+}", delete_event)
 
     router.add_get(p + r"/plans/{plan_id:\d+}/timeline", get_timeline)
+
+    # участники
+    router.add_get(p + r"/plans/{plan_id:\d+}/members", list_members)
+    router.add_patch(
+        p + r"/plans/{plan_id:\d+}/members/{user_id:\d+}", update_member_role
+    )
+    router.add_delete(
+        p + r"/plans/{plan_id:\d+}/members/{user_id:\d+}", remove_member
+    )
+    router.add_delete(p + r"/plans/{plan_id:\d+}/membership", leave_plan)
+
+    # приглашения
+    router.add_post(p + r"/plans/{plan_id:\d+}/invites", create_invite)
+    router.add_get(p + r"/plans/{plan_id:\d+}/invites", list_invites)
+    router.add_delete(
+        p + r"/plans/{plan_id:\d+}/invites/{invite_id:\d+}", revoke_invite
+    )
+    router.add_get(p + "/invites/{token}", get_invite_preview)
+    router.add_post(p + "/invites/{token}/accept", accept_invite)

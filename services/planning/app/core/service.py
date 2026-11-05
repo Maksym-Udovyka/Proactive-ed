@@ -1,12 +1,27 @@
+import secrets
 from datetime import date, datetime, time, timedelta, timezone
 
 import asyncpg
 
-from app.domain.models import ActivityType, EventType, serialize
-from app.repository import event_repository, plan_repository, session_repository
+from app.domain.models import (
+    INVITE_TOKEN_BYTES,
+    INVITE_TTL_DAYS,
+    ActivityType,
+    EventType,
+    PlanRole,
+    serialize,
+)
+from app.repository import (
+    event_repository,
+    invite_repository,
+    member_repository,
+    plan_repository,
+    session_repository,
+)
 
 DEFAULT_LIMIT = 50
 MAX_LIMIT = 100
+MAX_TOKEN_LENGTH = 100
 
 
 # ---------- ошибки (routes превратит их в HTTP-ответы) ----------
@@ -29,6 +44,14 @@ class ForbiddenError(ServiceError):
 
 class NotFoundError(ServiceError):
     status = 404
+
+
+class ConflictError(ServiceError):
+    status = 409
+
+
+class GoneError(ServiceError):
+    status = 410
 
 
 # ---------- валидаторы полей ----------
@@ -64,6 +87,13 @@ def _event_type(value):
     allowed = [item.value for item in EventType]
     if value not in allowed:
         raise ValidationError(f"event_type must be one of: {', '.join(allowed)}")
+    return value
+
+
+def _role(value):
+    allowed = [item.value for item in PlanRole]
+    if value not in allowed:
+        raise ValidationError(f"role must be one of: {', '.join(allowed)}")
     return value
 
 
@@ -112,6 +142,7 @@ _EVENT_FIELDS = {
     "event_date": _event_date,
     "description": _description,
 }
+_ROLE_FIELDS = {"role": _role}
 
 
 def _parse(data, validators: dict, required: tuple, partial: bool) -> dict:
@@ -361,3 +392,130 @@ async def get_timeline(
     ]
     items.sort(key=lambda item: item[0])
     return [item for _, item in items]
+
+
+# ---------- участники (НОВОЕ) ----------
+
+async def list_members(pool, user_id: int, plan_id: int) -> list[dict]:
+    await _get_plan_or_404(pool, plan_id, user_id)
+    rows = await member_repository.list_members(pool, plan_id)
+    return [serialize(row) for row in rows]
+
+
+async def update_member_role(
+    pool, user_id: int, plan_id: int, member_id: int, data
+) -> dict:
+    plan = await _get_plan_or_404(pool, plan_id, user_id)
+    _require_owner(plan)
+    if member_id == plan["owner_id"]:
+        raise ValidationError("The owner's role cannot be changed")
+    fields = _parse(data, _ROLE_FIELDS, required=("role",), partial=False)
+    row = await member_repository.update_role(
+        pool, plan_id, member_id, fields["role"]
+    )
+    if row is None:
+        raise NotFoundError("Member not found")
+    return serialize(row)
+
+
+async def remove_member(pool, user_id: int, plan_id: int, member_id: int) -> None:
+    plan = await _get_plan_or_404(pool, plan_id, user_id)
+    _require_owner(plan)
+    if member_id == plan["owner_id"]:
+        raise ValidationError("The owner cannot be removed from the plan")
+    if not await member_repository.remove_member(pool, plan_id, member_id):
+        raise NotFoundError("Member not found")
+
+
+async def leave_plan(pool, user_id: int, plan_id: int) -> None:
+    plan = await _get_plan_or_404(pool, plan_id, user_id)
+    if plan["role"] == "owner":
+        raise ValidationError("The owner cannot leave the plan")
+    if not await member_repository.remove_member(pool, plan_id, user_id):
+        raise NotFoundError("Plan not found")
+
+
+# ---------- приглашения (НОВОЕ) ----------
+
+async def create_invite(pool, user_id: int, plan_id: int, data) -> dict:
+    plan = await _get_plan_or_404(pool, plan_id, user_id)
+    _require_owner(plan)
+    fields = _parse(data, _ROLE_FIELDS, required=(), partial=False)
+    role = fields.get("role", PlanRole.VIEWER.value)
+    row = await invite_repository.create_invite(
+        pool,
+        plan_id,
+        role,
+        secrets.token_urlsafe(INVITE_TOKEN_BYTES),
+        user_id,
+        INVITE_TTL_DAYS,
+    )
+    return serialize(row)
+
+
+async def list_invites(pool, user_id: int, plan_id: int) -> list[dict]:
+    plan = await _get_plan_or_404(pool, plan_id, user_id)
+    _require_owner(plan)
+    rows = await invite_repository.list_active_invites(pool, plan_id)
+    return [serialize(row) for row in rows]
+
+
+async def revoke_invite(pool, user_id: int, plan_id: int, invite_id: int) -> None:
+    plan = await _get_plan_or_404(pool, plan_id, user_id)
+    _require_owner(plan)
+    if not await invite_repository.delete_invite(pool, plan_id, invite_id):
+        raise NotFoundError("Invite not found")
+
+
+def _check_token(token: str) -> str:
+    if not token or len(token) > MAX_TOKEN_LENGTH:
+        raise NotFoundError("Invite not found")
+    return token
+
+
+async def get_invite_preview(pool, user_id: int, token: str) -> dict:
+    """Предпросмотр для экрана вступления.
+
+    state: valid | own_plan | already_member | used | expired
+    (тот же порядок проверок, что и при вступлении).
+    """
+    row = await invite_repository.get_invite_preview(pool, _check_token(token))
+    if row is None:
+        raise NotFoundError("Invite not found")
+
+    if row["owner_id"] == user_id:
+        state = "own_plan"
+    elif await member_repository.get_member(pool, row["plan_id"], user_id):
+        state = "already_member"
+    elif row["used_at"] is not None:
+        state = "used"
+    elif row["expired"]:
+        state = "expired"
+    else:
+        state = "valid"
+
+    return {
+        "plan_id": row["plan_id"],
+        "plan_title": row["plan_title"],
+        "role": row["role"],
+        "invited_by_name": row["invited_by_name"],
+        "expires_at": row["expires_at"].isoformat(),
+        "state": state,
+    }
+
+
+async def accept_invite(pool, user_id: int, token: str) -> dict:
+    status, plan_id, role = await invite_repository.accept_invite(
+        pool, _check_token(token), user_id
+    )
+    if status == "not_found":
+        raise NotFoundError("Invite not found")
+    if status == "own_plan":
+        raise ConflictError("This is your own plan")
+    if status == "already_member":
+        raise ConflictError("You are already a member of this plan")
+    if status == "used":
+        raise ConflictError("This invite has already been used")
+    if status == "expired":
+        raise GoneError("This invite has expired")
+    return {"plan_id": plan_id, "role": role}

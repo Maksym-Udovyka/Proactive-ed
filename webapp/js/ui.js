@@ -14,7 +14,9 @@ const errorText = document.getElementById("errorText");
 export const ICONS = {
     plans: '<svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2.5"/><path d="M9 4V3h6v1M9 10h6M9 14h6"/></svg>',
     calendar: '<svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2.5"/><path d="M8 3v4M16 3v4M4 10h16"/></svg>',
-    alert: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V13M12 16.5h.01"/></svg>'
+    alert: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V13M12 16.5h.01"/></svg>',
+    /* НОВЕ: для екрана запрошення */
+    users: '<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6M16 4.8a3.5 3.5 0 0 1 0 6.4M18 14.4c2.1.7 3.5 2.6 3.5 5.6"/></svg>'
 };
 
 /* ---------- Стан сторінки (loading / ready / error / outside) ---------- */
@@ -145,11 +147,22 @@ export function setBusy(buttons, busy) {
         if (button) button.disabled = busy;
     });
 }
-/* Зрозумілий текст помилки для користувача */
+
+/* Зрозумілий текст помилки для користувача.
+   Сервер повертає англійські повідомлення, тому для 409 і 410
+   (запрошення) підставляємо українські за статусом і ключовим словом. */
 export function friendlyError(error) {
     if (!error) return "Невідома помилка";
     if (error.status === 403) return "Недостатньо прав для цієї дії.";
     if (error.status === 404) return "Не знайдено. Можливо, це вже видалено.";
+    if (error.status === 409) {
+        const text = error.message || "";
+        if (text.indexOf("own plan") !== -1) return "Це ваш власний план.";
+        if (text.indexOf("already a member") !== -1) return "Ви вже є учасником цього плану.";
+        if (text.indexOf("already been used") !== -1) return "Це запрошення вже використано.";
+        return "Дію не можна виконати: стан змінився. Оновіть екран.";
+    }
+    if (error.status === 410) return "Термін дії запрошення минув.";
     if (error.status === 400 && error.message) return "Перевірте дані: " + error.message;
     return error.message || "Невідома помилка";
 }

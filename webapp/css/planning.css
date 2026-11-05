@@ -172,6 +172,7 @@
     line-height: 1.4;
     display: -webkit-box;
     -webkit-line-clamp: 2;
+    line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
@@ -192,10 +193,22 @@
     margin-bottom: 8px;
 }
 
+/* НОВЕ: бейдж ролі зліва, посилання «Учасники» справа */
 .plan-meta {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 8px;
+}
+
+.members-link {
+    padding: 6px 4px;
+    color: var(--text-main);
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    -webkit-tap-highlight-color: transparent;
 }
 
 .tabs {
@@ -381,6 +394,105 @@ input[type="datetime-local"].field-input::-webkit-date-and-time-value {
 
 .danger-button:disabled { opacity: 0.6; cursor: default; }
 
+/* ---------- Учасники й запрошення (НОВЕ) ---------- */
+.section-title {
+    margin: 20px 0 8px;
+    color: var(--text-sub);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.section-title:first-child { margin-top: 4px; }
+
+.member-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.member {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px 14px;
+    border-radius: 14px;
+    background-color: var(--card-bg);
+    border: 1px solid var(--border);
+    overflow-wrap: anywhere;
+}
+
+.member-info {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.invite .member-info {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+}
+
+.member-name {
+    flex: 1;
+    min-width: 0;
+    color: var(--text-main);
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.invite .member-name { flex: none; }
+
+.member-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.member-actions .main-button,
+.member-actions .secondary-button {
+    width: 100%;
+}
+
+.member-actions .danger-button,
+.member-actions .main-button,
+.member-actions .secondary-button {
+    padding: 10px;
+    font-size: 14px;
+}
+
+.member-role { width: 100%; }
+
+.profile-actions .danger-button { margin-top: 8px; }
+
+/* ---------- Екран запрошення (НОВЕ) ---------- */
+.invite-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 32px 8px;
+    text-align: center;
+}
+
+.invite-card .field-hint { text-align: center; }
+
+.invite-card .profile-actions {
+    width: 100%;
+    max-width: 320px;
+    margin-top: 12px;
+}
+
+.invite-plan {
+    color: var(--text-main);
+    font-size: 20px;
+    font-weight: 700;
+    overflow-wrap: anywhere;
+}
+
+.invite-line { margin: 4px 0; }
+
 /* ---------- Фокус з клавіатури ---------- */
 .icon-button:focus-visible,
 .text-button:focus-visible,
@@ -389,7 +501,8 @@ input[type="datetime-local"].field-input::-webkit-date-and-time-value {
 .item:focus-visible,
 .tab:focus-visible,
 .chip-button:focus-visible,
-.danger-button:focus-visible {
+.danger-button:focus-visible,
+.members-link:focus-visible {
     outline: 3px solid var(--text-main);
     outline-offset: 3px;
 }

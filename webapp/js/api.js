@@ -121,5 +121,23 @@ export const planning = {
     createEvent: (planId, data) => request("POST", `/plans/${planId}/events`, data),
     getEvent: (id) => request("GET", `/events/${id}`),
     updateEvent: (id, data) => request("PATCH", `/events/${id}`, data),
-    deleteEvent: (id) => request("DELETE", `/events/${id}`)
+    deleteEvent: (id) => request("DELETE", `/events/${id}`),
+
+    /* учасники (НОВЕ) */
+    listMembers: (planId) => request("GET", `/plans/${planId}/members`),
+    updateMemberRole: (planId, userId, role) =>
+        request("PATCH", `/plans/${planId}/members/${userId}`, { role: role }),
+    removeMember: (planId, userId) =>
+        request("DELETE", `/plans/${planId}/members/${userId}`),
+    leavePlan: (planId) => request("DELETE", `/plans/${planId}/membership`),
+
+    /* запрошення (НОВЕ) */
+    listInvites: (planId) => request("GET", `/plans/${planId}/invites`),
+    createInvite: (planId, role) =>
+        request("POST", `/plans/${planId}/invites`, { role: role }),
+    revokeInvite: (planId, inviteId) =>
+        request("DELETE", `/plans/${planId}/invites/${inviteId}`),
+    getInvite: (token) => request("GET", `/invites/${encodeURIComponent(token)}`),
+    acceptInvite: (token) =>
+        request("POST", `/invites/${encodeURIComponent(token)}/accept`)
 };

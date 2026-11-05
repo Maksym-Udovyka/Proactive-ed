@@ -17,6 +17,7 @@
     var API = "/api/auth/v1";
     var STORAGE_KEY = "proactive-ed-theme";
     var TOKEN_KEY = "proactive-ed-token";
+    var INVITE_SEEN_KEY = "proactive-ed-invite-seen"; // НОВЕ
     var root = document.documentElement;
     var tg = window.Telegram && window.Telegram.WebApp;
     var inTelegram = !!(tg && tg.initData); // true только при открытии из Telegram
@@ -37,6 +38,26 @@
         (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"));
 
     root.setAttribute("data-state", inTelegram ? "loading" : "outside");
+
+    /* ---------- НОВЕ: запрошення за посиланням ----------
+       Посилання t.me/<бот>/<застосунок>?startapp=<токен> передає токен у start_param.
+       Токен однаковий для всієї сесії, тому переходимо на екран запрошення
+       один раз: інакше «Назад» з planning.html знову вів би на нього. */
+    function inviteToken() {
+        var param = tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param;
+        return typeof param === "string" && /^[A-Za-z0-9_-]{1,100}$/.test(param) ? param : null;
+    }
+
+    function openInviteIfAny() {
+        var token = inviteToken();
+        if (!token) return false;
+        try {
+            if (sessionStorage.getItem(INVITE_SEEN_KEY) === token) return false;
+            sessionStorage.setItem(INVITE_SEEN_KEY, token);
+        } catch (e) { /* сховище недоступне: переходимо без захисту від повтору */ }
+        location.replace("planning.html#/invite/" + encodeURIComponent(token));
+        return true;
+    }
 
     /* ---------- 2. Остальное после загрузки DOM ---------- */
     document.addEventListener("DOMContentLoaded", function () {
@@ -176,6 +197,10 @@
                 }
                 token = data.token;
                 try { localStorage.setItem(TOKEN_KEY, token); } catch (e) {}
+
+                /* НОВЕ: токен збережено, planning.html підхопить його з localStorage.
+                   Якщо відкрито за запрошенням, одразу йдемо на екран вступу. */
+                if (openInviteIfAny()) return;
 
                 var me = await fetch(API + "/me", { headers: authHeaders() });
                 var meData = await readJson(me);

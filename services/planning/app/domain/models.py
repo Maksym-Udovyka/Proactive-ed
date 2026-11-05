@@ -17,6 +17,21 @@ class EventType(str, Enum):
     OTHER = "other"
 
 
+class PlanRole(str, Enum):
+    """Роли, которые можно назначить участнику (совпадают с planning.plan_role)."""
+
+    VIEWER = "viewer"
+    COMMENTER = "commenter"
+
+
+# Владелец хранится в plans.owner_id, а не в plan_members, поэтому в enum его нет.
+OWNER_ROLE = "owner"
+
+# Срок жизни приглашения и размер токена (secrets.token_urlsafe).
+INVITE_TTL_DAYS = 7
+INVITE_TOKEN_BYTES = 16
+
+
 def serialize(record) -> dict:
     """Строка из БД -> словарь, пригодный для JSON (даты в ISO-формате)."""
     result = {}
