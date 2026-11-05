@@ -187,11 +187,55 @@
                 currentUser = meData.user;
                 showUser();
                 setState("ready");
+                addPlanningTestButton();
             } catch (e) {
                 fail("Немає зв'язку з сервером. Перевірте інтернет і спробуйте ще раз.");
             } finally {
                 busy = false;
             }
+        }
+
+        var PLANNING_API = "/api/planning/v1";
+
+        async function planningCall(method, path, body) {
+            var res = await fetch(PLANNING_API + path, {
+                method: method,
+                headers: authHeaders(body ? { "Content-Type": "application/json" } : {}),
+                body: body ? JSON.stringify(body) : undefined
+            });
+            var data = await readJson(res);
+            if (!res.ok) throw new Error(res.status + ": " + (data.error || "помилка"));
+            return data;
+        }
+
+        async function runPlanningTest() {
+            try {
+                var plan = await planningCall("POST", "/plans", { title: "Тест з Mini App" });
+                var start = new Date(Date.now() + 3600 * 1000).toISOString();
+                await planningCall("POST", "/plans/" + plan.plan_id + "/sessions", {
+                    title: "Тестова сесія",
+                    activity_type: "self_study",
+                    start_time: start,
+                    duration_minutes: 60
+                });
+                var timeline = await planningCall("GET", "/plans/" + plan.plan_id + "/timeline");
+                var plans = await planningCall("GET", "/plans");
+                tg.showAlert("Planning працює. План №" + plan.plan_id +
+                    ", у хронології: " + timeline.length + ", усього планів: " + plans.length);
+            } catch (e) {
+                tg.showAlert("Помилка planning: " + e.message);
+            }
+        }
+
+        function addPlanningTestButton() {
+            if (document.getElementById("planningTestBtn")) return;
+            var btn = document.createElement("button");
+            btn.id = "planningTestBtn";
+            btn.type = "button";
+            btn.textContent = "Тест planning";
+            btn.style.cssText = "position:fixed;left:16px;bottom:16px;z-index:10;padding:10px 14px;";
+            btn.addEventListener("click", runPlanningTest);
+            document.body.appendChild(btn);
         }
 
         retryBtn.addEventListener("click", login);
