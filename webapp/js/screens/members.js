@@ -7,12 +7,13 @@ import {
     setHeaderAction, setTitle, showError, showLoading, showToast
 } from "../ui.js";
 
+
 const tg = window.Telegram && window.Telegram.WebApp;
 
 /* Заповніть після /newapp у BotFather:
    посилання матиме вигляд https://t.me/<BOT_USERNAME>/<APP_SHORT_NAME>?startapp=<токен> */
-const BOT_USERNAME = "";
-const APP_SHORT_NAME = "";
+const BOT_USERNAME = "proactive_ed_bot";
+const APP_SHORT_NAME = "app";
 
 const ASSIGNABLE_ROLES = ["viewer", "commenter"];
 

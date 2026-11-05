@@ -12,7 +12,7 @@
     /* Ім'я Telegram-бота без @ (наприклад "proactive_ed_bot").
        Потрібне для кнопки «Відкрити в Telegram» на екрані для звичайного браузера.
        Якщо залишити порожнім, кнопку буде приховано. */
-    var BOT_USERNAME = "";
+    var BOT_USERNAME = "proactive_ed_bot";
 
     var API = "/api/auth/v1";
     var STORAGE_KEY = "proactive-ed-theme";
