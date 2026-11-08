@@ -27,16 +27,16 @@
     --page-bg: #00041A;
     --bg-color: #00082F;
     --card-bg: #251766;
-    --text-main: #FDB29F;
+    --text-main: #5f4999;
     --text-sub: #A895C9;
-    --accent: #DD768C;
-    --btn-bg: #DD768C;
+    --accent: #342756;
+    --btn-bg: #342756;
     --btn-text: #00082F;
     --icon-bg: rgba(221, 118, 140, 0.2);
     --border: rgba(253, 178, 159, 0.16);
-    --toast-bg: #FDB29F;
+    --toast-bg: #342756;
     --toast-text: #00082F;
-    --danger: #FF9B9B;
+    --danger: #342756;
 }
 
 /* =========================================
