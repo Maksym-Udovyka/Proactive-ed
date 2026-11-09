@@ -27,16 +27,16 @@
     --page-bg: #00041A;
     --bg-color: #00082F;
     --card-bg: #251766;
-    --text-main: #5f4999;
-    --text-sub: #A895C9;
-    --accent: #342756;
-    --btn-bg: #342756;
+    --text-main: #E4DAFF;
+    --text-sub: #BFB0E6;
+    --accent: #8F7BD8;
+    --btn-bg: #B9A6F2;
     --btn-text: #00082F;
-    --icon-bg: rgba(221, 118, 140, 0.2);
-    --border: rgba(253, 178, 159, 0.16);
-    --toast-bg: #342756;
+    --icon-bg: rgba(143, 123, 216, 0.25);
+    --border: rgba(185, 166, 242, 0.22);
+    --toast-bg: #E4DAFF;
     --toast-text: #00082F;
-    --danger: #342756;
+    --danger: #FF9B9B;
 }
 
 /* =========================================
